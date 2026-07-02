@@ -266,6 +266,26 @@
     // Imported WebVTT captions: a centered lower bar over the composed layout.
     function drawCaptions(w, h) {
       if (!PDC.captions || !episodeRef) return;
+      const hasCaptions = PDC.captions.hasCaptions && PDC.captions.hasCaptions(episodeRef);
+      canvasEl.dataset.captionsLoaded = hasCaptions ? "true" : "false";
+      if (hasCaptions) {
+        ctx.save();
+        const chipW = Math.round(w * 0.052);
+        const chipH = Math.round(h * 0.042);
+        const chipX = Math.round(w * 0.026);
+        const chipY = Math.round(h * 0.04);
+        ctx.fillStyle = "rgba(5, 7, 12, 0.86)";
+        ctx.fillRect(chipX, chipY, chipW, chipH);
+        ctx.strokeStyle = "rgba(255,255,255,0.72)";
+        ctx.lineWidth = 1;
+        ctx.strokeRect(chipX + 0.5, chipY + 0.5, chipW - 1, chipH - 1);
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "700 " + Math.round(h * 0.024) + "px system-ui, sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("CC", chipX + chipW / 2, chipY + chipH / 2, chipW - 8);
+        ctx.restore();
+      }
       const active = PDC.captions.activeCaptionsAt(episodeRef, referenceTime);
       if (!active.length) {
         canvasEl.dataset.captionText = "";

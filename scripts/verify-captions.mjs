@@ -15,8 +15,27 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 function findChrome() {
-  const candidates = [process.env.CHROME_BIN, "google-chrome", "chromium", "chromium-browser",
-    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"].filter(Boolean);
+  function playwrightChromes() {
+    const rootDir = "/ms-playwright";
+    try {
+      return fs.readdirSync(rootDir, { withFileTypes: true })
+        .filter((entry) => entry.isDirectory() && entry.name.startsWith("chromium-"))
+        .map((entry) => path.join(rootDir, entry.name, "chrome-linux", "chrome"));
+    } catch (e) {
+      return [];
+    }
+  }
+  const candidates = [
+    process.env.CHROME_BIN,
+    "google-chrome",
+    "chromium",
+    "chromium-browser",
+    ...playwrightChromes(),
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+    "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
+    "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
+  ].filter(Boolean);
   for (const c of candidates) if (spawnSync(c, ["--version"], { encoding: "utf8" }).status === 0) return c;
   throw new Error("Chrome/Chromium was not found. Set CHROME_BIN to run caption verification.");
 }
@@ -191,6 +210,7 @@ const browserExpression = `
   await waitFor(() => document.querySelectorAll("#caption-list li").length === 2, "two caption cues should be listed");
   const listText = document.querySelector("#caption-list").textContent;
   assert(listText.includes("CAP ONE TEXT") && listText.includes("CAP TWO TEXT"), "caption list should show both cues");
+  await waitFor(() => stage().dataset.captionsLoaded === "true", "canvas should mark that captions are loaded");
   assert(/CAP ONE TEXT/.test(stage().dataset.captionText || ""), "first caption should render immediately after import");
 
   document.querySelector("#restart").click();

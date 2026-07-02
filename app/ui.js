@@ -484,6 +484,7 @@
     const btn = $("export");
     btn.disabled = true;
     btn.textContent = "⏳ Exporting…";
+    preview.seekTo(0);
     preview.play(); // ensure the canvas is composing live frames while we capture
     $("export-progress").hidden = false;
     $("export-result").hidden = true;
