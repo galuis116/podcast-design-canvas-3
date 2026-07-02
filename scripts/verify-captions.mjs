@@ -225,6 +225,13 @@ const browserExpression = `
   await waitFor(() => captionAbsent(), "scrubbed to 4.5s: no caption in the gap (Split)");
   await scrubTo(6);
   await waitFor(() => /CAP TWO TEXT/.test(stage().dataset.captionText || "") && captionShown(), "scrubbed to 6s: second caption shown (Split)");
+  document.querySelector("#play").click();
+  await sleep(450);
+  await waitFor(
+    () => /CAP TWO TEXT/.test(stage().dataset.captionText || "") && captionShown(),
+    "playing after scrubbed 6s should continue from that cue instead of restarting at 0",
+  );
+  pausePreview();
 
   for (const presetId of ["stack", "spotlight"]) {
     document.querySelector('[data-preset="' + presetId + '"]').click();

@@ -21,6 +21,7 @@
 
     function syncReferenceTime() {
       const times = Object.values(videos)
+        .filter((video) => !video.seeking)
         .map((video) => video.currentTime)
         .filter((time) => Number.isFinite(time) && time >= 0);
       if (!times.length) return referenceTime;
@@ -41,8 +42,9 @@
     }
 
     function alignPlayback(time) {
-      referenceTime = syncReferenceTime();
-      const target = Number.isFinite(time) ? Math.min(referenceTime, time) : referenceTime;
+      const synced = syncReferenceTime();
+      const target = Number.isFinite(time) ? Math.max(0, time) : synced;
+      referenceTime = target;
       seekAll(target);
       return target;
     }
@@ -347,7 +349,7 @@
 
     function play() {
       playing = true;
-      const targetTime = alignPlayback(0);
+      const targetTime = alignPlayback();
       Object.keys(videos).forEach(function (b) {
         const p = videos[b].play();
         if (p && typeof p.catch === "function") p.catch(function () {});
