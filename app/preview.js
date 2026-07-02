@@ -197,6 +197,7 @@
       });
 
       drawActiveMoments(w, h);
+      drawCaptions(w, h);
 
       canvasEl.dataset.preset = episodeRef.presetId;
       canvasEl.dataset.speakers = String(buckets.length);
@@ -258,6 +259,34 @@
       ctx.fillStyle = "#ffffff";
       ctx.textAlign = "left";
       ctx.fillText(moment.text, barX + edgeW + padX, barY + barH / 2, maxTextW);
+    }
+
+    // Imported WebVTT captions: a centered lower bar over the composed layout.
+    function drawCaptions(w, h) {
+      if (!PDC.captions || !episodeRef) return;
+      const active = PDC.captions.activeCaptionsAt(episodeRef, referenceTime);
+      if (!active.length) {
+        canvasEl.dataset.captionText = "";
+        return;
+      }
+      canvasEl.dataset.captionText = active.map((cue) => cue.text).join("|");
+      const cue = active[0];
+      ctx.save();
+      const fontSize = Math.round(h * 0.048);
+      ctx.font = "600 " + fontSize + "px system-ui, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      const maxTextW = w * 0.72;
+      const barH = Math.round(h * 0.095);
+      const textW = Math.min(maxTextW, ctx.measureText(cue.text).width + 36);
+      const barW = Math.max(Math.round(w * 0.42), Math.round(textW));
+      const barX = Math.round((w - barW) / 2);
+      const barY = Math.round(h * 0.84);
+      ctx.fillStyle = "rgba(0, 0, 0, 0.84)";
+      ctx.fillRect(barX, barY, barW, barH);
+      ctx.fillStyle = "#ffffff";
+      ctx.fillText(cue.text, w / 2, barY + barH / 2, barW - 28);
+      ctx.restore();
     }
 
     // B-roll image: a real uploaded PNG, decoded in app/moment-images.js and
