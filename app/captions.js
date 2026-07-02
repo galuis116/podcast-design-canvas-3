@@ -7,9 +7,9 @@
 (function () {
   const PDC = (window.PDC = window.PDC || {});
 
-  // WebVTT timestamps: MM:SS.mmm or HH:MM:SS.mmm
+  // WebVTT timestamps: MM:SS.mmm or HH:MM:SS.mmm (comma or dot decimals).
   function parseTimestamp(raw) {
-    const s = String(raw || "").trim();
+    const s = String(raw || "").trim().replace(",", ".");
     const parts = s.split(":");
     if (parts.length < 2 || parts.length > 3) return NaN;
     let hours = 0;
@@ -19,47 +19,70 @@
       hours = Number(parts[0]);
       minutes = Number(parts[1]);
       seconds = Number(parts[2]);
-    } else {
-      minutes = Number(parts[0]);
-      seconds = Number(parts[1]);
+      if (!Number.isFinite(hours) || !Number.isFinite(minutes) || !Number.isFinite(seconds)) return NaN;
+      if (hours < 0 || minutes < 0 || seconds < 0 || minutes >= 60 || seconds >= 60) return NaN;
+      return hours * 3600 + minutes * 60 + seconds;
     }
-    if (!Number.isFinite(hours) || !Number.isFinite(minutes) || !Number.isFinite(seconds)) return NaN;
-    if (hours < 0 || minutes < 0 || seconds < 0 || minutes >= 60 || seconds >= 60) return NaN;
-    return hours * 3600 + minutes * 60 + seconds;
+    minutes = Number(parts[0]);
+    seconds = Number(parts[1]);
+    if (!Number.isFinite(minutes) || !Number.isFinite(seconds)) return NaN;
+    if (minutes < 0 || seconds < 0) return NaN;
+    return minutes * 60 + seconds;
   }
 
   function stripTags(text) {
     return String(text || "").replace(/<[^>]+>/g, "").trim();
   }
 
+  function skipMetadataBlock(lines, index) {
+    while (index < lines.length && lines[index].trim() !== "") index += 1;
+    return index;
+  }
+
   // Parse a WebVTT document into timed cues. Returns { ok, cues } or { ok, error }.
   function parseWebVTT(text) {
-    const raw = String(text || "").replace(/^\uFEFF/, "");
-    const trimmed = raw.trimStart();
-    if (!/^WEBVTT/i.test(trimmed)) {
+    const raw = String(text || "").replace(/^\uFEFF/, "").replace(/\r\n/g, "\n");
+    if (!/^WEBVTT/i.test(raw.trimStart())) {
       return { ok: false, error: "Caption file must begin with a WEBVTT header." };
     }
 
+    const lines = raw.split("\n");
     const cues = [];
-    const blocks = raw.replace(/\r\n/g, "\n").split(/\n\n+/);
-    for (const block of blocks) {
-      const lines = block.split("\n").map((line) => line.trimEnd()).filter((line) => line.trim() !== "");
-      if (!lines.length) continue;
-      if (/^WEBVTT/i.test(lines[0])) continue;
-      if (/^NOTE(?:\s|$)/i.test(lines[0])) continue;
-
-      let index = 0;
-      if (!lines[index].includes("-->") && lines[index + 1] && lines[index + 1].includes("-->")) {
-        index += 1;
+    let i = 0;
+    while (i < lines.length) {
+      const line = lines[i].trim();
+      i += 1;
+      if (!line) continue;
+      if (/^WEBVTT/i.test(line)) continue;
+      if (/^NOTE(?:\s|$)/i.test(line)) {
+        i = skipMetadataBlock(lines, i);
+        continue;
       }
-      const timing = lines[index];
-      if (!timing || !timing.includes("-->")) continue;
-      const parts = timing.split("-->");
+      if (/^STYLE/i.test(line) || /^REGION/i.test(line)) {
+        i = skipMetadataBlock(lines, i);
+        continue;
+      }
+
+      let timingLine = line;
+      if (!timingLine.includes("-->")) {
+        if (i >= lines.length) continue;
+        timingLine = lines[i].trim();
+        i += 1;
+        if (!timingLine.includes("-->")) continue;
+      }
+
+      const parts = timingLine.split("-->");
       const start = parseTimestamp(parts[0]);
       const end = parseTimestamp((parts[1] || "").trim().split(/\s+/)[0]);
       if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) continue;
 
-      const cueText = stripTags(lines.slice(index + 1).join("\n"));
+      const textLines = [];
+      while (i < lines.length && lines[i].trim() !== "") {
+        if (lines[i].includes("-->")) break;
+        textLines.push(lines[i]);
+        i += 1;
+      }
+      const cueText = stripTags(textLines.join("\n"));
       if (!cueText) continue;
       cues.push({ start, end, text: cueText });
     }

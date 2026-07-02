@@ -27,7 +27,7 @@ test("parseTimestamp accepts MM:SS.mmm and HH:MM:SS.mmm", () => {
 });
 
 test("parseTimestamp rejects invalid timestamps", () => {
-  for (const bad of ["", "abc", "1", "00:xx", "99:99.000", null]) {
+  for (const bad of ["", "abc", "1", "00:xx", "00:00:60.000", null]) {
     assert.ok(Number.isNaN(C.parseTimestamp(bad)), `expected NaN for ${String(bad)}`);
   }
 });
@@ -42,6 +42,22 @@ test("parseWebVTT extracts timed cues from a valid file", () => {
   assert.equal(parsed.cues[1].text, "Guest follow-up line");
   assert.equal(parsed.cues[1].start, 5);
   assert.equal(parsed.cues[1].end, 8);
+});
+
+test("parseWebVTT accepts comma decimals and single-newline cue blocks", () => {
+  const vtt = "WEBVTT\n\n00:00:01,000 --> 00:00:04,000\nComma cue one\n00:00:05,000 --> 00:00:08,000\nComma cue two\n";
+  const parsed = C.parseWebVTT(vtt);
+  assert.equal(parsed.ok, true);
+  assert.equal(parsed.cues.length, 2);
+  assert.equal(parsed.cues[0].text, "Comma cue one");
+  assert.equal(parsed.cues[1].text, "Comma cue two");
+});
+
+test("parseWebVTT accepts optional cue identifiers", () => {
+  const vtt = "WEBVTT\n\ncue-1\n00:00:01.000 --> 00:00:04.000\nIdentified cue\n";
+  const parsed = C.parseWebVTT(vtt);
+  assert.equal(parsed.ok, true);
+  assert.equal(parsed.cues[0].text, "Identified cue");
 });
 
 test("parseWebVTT rejects files without a WEBVTT header or cues", () => {

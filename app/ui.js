@@ -249,8 +249,7 @@
       : "No caption file imported.";
     renderCaptionList();
   }
-  $("caption-file").addEventListener("change", function () {
-    const file = $("caption-file").files && $("caption-file").files[0];
+  function ingestCaptionFile(file) {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = function () {
@@ -262,15 +261,28 @@
       }
       C.setCaptions(episode, file.name, parsed.cues);
       syncCaptionUi();
-      preview.drawFrame();
-      refresh();
-      if (parsed.cues.length) {
+      preview.render(episode);
+      if (canCompose(episode)) {
         const first = parsed.cues[0];
         preview.seekTo(Math.max(0, Math.min(first.end - 0.05, first.start + 0.05)));
+        preview.drawFrame();
       }
+      refresh();
+    };
+    reader.onerror = function () {
+      $("caption-status").textContent = "Could not read the caption file.";
+      $("caption-file").value = "";
     };
     reader.readAsText(file);
-  });
+  }
+  function onCaptionFileInput() {
+    const file = $("caption-file").files && $("caption-file").files[0];
+    if (!file) return;
+    ingestCaptionFile(file);
+    $("caption-file").value = "";
+  }
+  $("caption-file").addEventListener("change", onCaptionFileInput);
+  $("caption-file").addEventListener("input", onCaptionFileInput);
   $("caption-clear").addEventListener("click", function () {
     C.clearCaptions(episode);
     $("caption-file").value = "";

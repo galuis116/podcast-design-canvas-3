@@ -22,8 +22,7 @@
     function syncReferenceTime() {
       const times = Object.values(videos)
         .map((video) => video.currentTime)
-        .filter((time) => Number.isFinite(time))
-        .filter((time) => time > 0);
+        .filter((time) => Number.isFinite(time) && time >= 0);
       if (!times.length) return referenceTime;
       const next = Math.min(...times);
       referenceTime = next;
@@ -140,6 +139,7 @@
 
     function drawFrame() {
       if (!episodeRef) return;
+      syncReferenceTime();
       const buckets = PDC.episode.assignedBuckets(episodeRef);
       const rects = PDC.templates
         ? PDC.templates.resolveLayout(episodeRef, buckets.length)

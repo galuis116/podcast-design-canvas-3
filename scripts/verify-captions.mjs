@@ -119,12 +119,22 @@ const browserExpression = `
     return String(h).padStart(2, "0") + ":" + String(m).padStart(2, "0") + ":" + s;
   }
   function makeVtt() {
+    const t1s = formatVttTime(1).replace(/\\./g, ",");
+    const t4s = formatVttTime(4).replace(/\\./g, ",");
+    const t5s = formatVttTime(5).replace(/\\./g, ",");
+    const t8s = formatVttTime(8).replace(/\\./g, ",");
     const body = "WEBVTT\\n\\n"
-      + formatVttTime(1) + " --> " + formatVttTime(4) + "\\nCAP ONE TEXT\\n\\n"
-      + formatVttTime(5) + " --> " + formatVttTime(8) + "\\nCAP TWO TEXT\\n";
+      + t1s + " --> " + t4s + "\\nCAP ONE TEXT\\n"
+      + t5s + " --> " + t8s + "\\nCAP TWO TEXT\\n";
     return new File([body], "episode.vtt", { type: "text/vtt" });
   }
-  const uploadTo = (input, file) => { const dt = new DataTransfer(); dt.items.add(file); input.files = dt.files; input.dispatchEvent(new Event("change", { bubbles: true })); };
+  const uploadTo = (input, file) => {
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    input.files = dt.files;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  };
   const typeInto = (input, v) => { input.value = v; input.dispatchEvent(new Event("input", { bubbles: true })); };
 
   const CAPTION_REGION = { x0: 25, y0: 84, x1: 75, y1: 93 };
@@ -181,6 +191,20 @@ const browserExpression = `
   await waitFor(() => document.querySelectorAll("#caption-list li").length === 2, "two caption cues should be listed");
   const listText = document.querySelector("#caption-list").textContent;
   assert(listText.includes("CAP ONE TEXT") && listText.includes("CAP TWO TEXT"), "caption list should show both cues");
+  assert(/CAP ONE TEXT/.test(stage().dataset.captionText || ""), "first caption should render immediately after import");
+
+  document.querySelector("#restart").click();
+  await waitFor(
+    () => /CAP ONE TEXT/.test(stage().dataset.captionText || "") && captionShown(),
+    "first caption should appear during live playback inside 1-4s",
+    160,
+  );
+  await waitFor(() => captionAbsent(), "caption should disappear once playback passes the first cue", 220);
+  await waitFor(
+    () => /CAP TWO TEXT/.test(stage().dataset.captionText || "") && captionShown(),
+    "second caption should appear during live playback inside 5-8s",
+    220,
+  );
 
   function pausePreview() {
     const btn = document.querySelector("#play");
